@@ -1,0 +1,1363 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mesh Forge Playground - Laboratório de Composição Procedural</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    
+    <!-- Custom Vanilla CSS (Premium Dark IDE Theme) -->
+    <style>
+        :root {
+            --bg-primary: #06080c;
+            --bg-sidebar: rgba(10, 13, 20, 0.85);
+            --bg-editor: #090c13;
+            --border-glow: rgba(0, 242, 254, 0.2);
+            --border-hover: rgba(0, 242, 254, 0.55);
+            --primary: #00f2fe;
+            --secondary: #4facfe;
+            --accent: #ff0844;
+            --text-main: #f0f3f6;
+            --text-muted: #8b949e;
+            --panel-blur: blur(20px);
+            --shadow-neon: 0 0 20px rgba(0, 242, 254, 0.15);
+            --shadow-panel: 0 8px 32px 0 rgba(0, 0, 0, 0.6);
+            --transition: all 0.2s ease-in-out;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+        }
+
+        /* 3D Canvas Background */
+        #canvas-container {
+            flex-grow: 1;
+            height: 100%;
+            position: relative;
+            z-index: 1;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Glowing backdrop lights */
+        .glow-orb {
+            position: absolute;
+            width: 400px;
+            height: 400px;
+            border-radius: 50%;
+            filter: blur(150px);
+            z-index: 0;
+            pointer-events: none;
+            opacity: 0.1;
+        }
+        .glow-1 {
+            background: var(--primary);
+            top: -100px;
+            right: -100px;
+        }
+        .glow-2 {
+            background: var(--accent);
+            bottom: -150px;
+            left: 20%;
+        }
+
+        /* Sidebar Glassmorphic IDE Layout */
+        #sidebar {
+            width: 530px;
+            height: 100vh;
+            background: var(--bg-sidebar);
+            backdrop-filter: var(--panel-blur);
+            -webkit-backdrop-filter: var(--panel-blur);
+            border-right: 1px solid rgba(255, 255, 255, 0.08);
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            box-shadow: var(--shadow-panel);
+            position: relative;
+        }
+
+        /* Custom Scrollbar */
+        .scrollable-content {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+        .scrollable-content::-webkit-scrollbar {
+            width: 5px;
+        }
+        .scrollable-content::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+        }
+        .scrollable-content::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+        }
+        .scrollable-content::-webkit-scrollbar-thumb:hover {
+            background: var(--primary);
+        }
+
+        /* Header Logo */
+        .header {
+            padding: 16px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 1.1rem;
+            color: #000;
+            font-family: 'Outfit', sans-serif;
+            box-shadow: 0 0 15px rgba(0, 242, 254, 0.3);
+        }
+        .logo-text h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            background: linear-gradient(to right, #fff, var(--text-muted));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .logo-text p {
+            font-size: 0.7rem;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: 600;
+            margin-top: 1px;
+        }
+
+        /* Cards */
+        .card {
+            background: rgba(255, 255, 255, 0.015);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 14px;
+            transition: var(--transition);
+        }
+        .card:hover {
+            border-color: var(--border-glow);
+        }
+        .card-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .card-title svg {
+            color: var(--primary);
+        }
+
+        /* Interactive Code Editor Container */
+        .editor-container {
+            background: var(--bg-editor);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 12px;
+            box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.6);
+            transition: var(--transition);
+        }
+        .editor-container.focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 15px rgba(0, 242, 254, 0.1), inset 0 0 12px rgba(0, 0, 0, 0.6);
+        }
+        .editor-header {
+            background: rgba(255, 255, 255, 0.01);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 8px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+        .editor-header .lang-badge {
+            color: var(--primary);
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+        .editor-body {
+            display: flex;
+            position: relative;
+        }
+        .line-numbers {
+            padding: 14px 6px 14px 12px;
+            text-align: right;
+            color: #3b4554;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+            line-height: 1.6;
+            user-select: none;
+            background: rgba(0, 0, 0, 0.2);
+            border-right: 1px solid rgba(255, 255, 255, 0.03);
+        }
+        .textarea-wrapper {
+            flex-grow: 1;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+        .editor-pre-wrapper {
+            padding: 14px 16px 2px 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+            color: #4c566a;
+            user-select: none;
+            background: transparent;
+            line-height: 1.6;
+        }
+        .editor-post-wrapper {
+            padding: 2px 16px 14px 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+            color: #4c566a;
+            user-select: none;
+            background: transparent;
+            line-height: 1.6;
+        }
+        textarea.code-textarea {
+            width: 100%;
+            background: transparent;
+            border: none;
+            resize: none;
+            outline: none;
+            color: #88c0d0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+            line-height: 1.6;
+            padding: 0 16px;
+            height: 180px;
+            tab-size: 4;
+            overflow-y: auto;
+            caret-color: var(--primary);
+        }
+
+        /* Error Banner */
+        .error-banner {
+            background: rgba(255, 8, 68, 0.06);
+            border: 1px dashed var(--accent);
+            color: #ffa5b6;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 0.72rem;
+            font-family: 'JetBrains Mono', monospace;
+            display: none;
+            margin-bottom: 12px;
+            line-height: 1.4;
+        }
+
+        /* FRAGMENTS RECIPES LIBRARY (Biblioteca de Receitas) */
+        .recipes-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .recipe-card {
+            background: rgba(255, 255, 255, 0.015);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 8px;
+            padding: 10px;
+            transition: var(--transition);
+        }
+        .recipe-card:hover {
+            background: rgba(255, 255, 255, 0.03);
+            border-color: rgba(0, 242, 254, 0.2);
+        }
+        .recipe-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+        .recipe-name {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .recipe-desc {
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+        .recipe-code-box {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            border-radius: 6px;
+            padding: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.68rem;
+            color: var(--primary);
+            margin-bottom: 6px;
+            word-break: break-all;
+            white-space: pre-wrap;
+        }
+        .recipe-add-btn {
+            background: rgba(0, 242, 254, 0.08);
+            border: 1px solid rgba(0, 242, 254, 0.2);
+            color: var(--primary);
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            cursor: pointer;
+            width: 100%;
+            text-align: center;
+            transition: var(--transition);
+        }
+        .recipe-add-btn:hover {
+            background: var(--primary);
+            color: #000;
+            box-shadow: 0 0 10px rgba(0, 242, 254, 0.3);
+        }
+
+        /* Setup Form inputs */
+        .form-group {
+            margin-bottom: 12px;
+        }
+        label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.76rem;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+        .val-display {
+            color: var(--primary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        select {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 6px 10px;
+            color: #fff;
+            font-size: 0.82rem;
+            outline: none;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        select:focus {
+            border-color: var(--primary);
+        }
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 4px;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.08);
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 242, 254, 0.5);
+            transition: var(--transition);
+        }
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        /* Switch Buttons */
+        .btn-group {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+        .btn {
+            background: rgba(255, 255, 255, 0.01);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            color: var(--text-muted);
+            padding: 6px;
+            border-radius: 8px;
+            font-size: 0.74rem;
+            cursor: pointer;
+            font-weight: 500;
+            transition: var(--transition);
+        }
+        .btn:hover {
+            border-color: var(--primary);
+            color: #fff;
+        }
+        .btn.active {
+            background: linear-gradient(135deg, rgba(0, 242, 254, 0.1), rgba(79, 172, 254, 0.1));
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        /* C# Dynamic Unity Sync Panel */
+        .code-container {
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(5, 7, 10, 0.98);
+            display: flex;
+            flex-direction: column;
+            max-height: 230px;
+        }
+        .code-header {
+            padding: 8px 16px;
+            background: rgba(0,0,0,0.3);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .code-header span {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--primary);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        .copy-btn {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--text-muted);
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-size: 0.65rem;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .copy-btn:hover {
+            background: var(--primary);
+            color: #000;
+            font-weight: 600;
+        }
+        .code-window {
+            padding: 12px;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+        pre {
+            margin: 0;
+        }
+        code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            line-height: 1.45;
+            color: #d8dee9;
+            white-space: pre;
+            display: block;
+        }
+
+        /* Floating tip overlay */
+        #controls-hover-tip {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(13, 17, 23, 0.85);
+            border: 1px solid rgba(0, 242, 254, 0.2);
+            backdrop-filter: var(--panel-blur);
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            pointer-events: none;
+            box-shadow: var(--shadow-panel);
+            z-index: 100;
+        }
+
+        /* App loader */
+        #loader {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: var(--bg-primary);
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.3s ease;
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(0, 242, 254, 0.1);
+            border-radius: 50%;
+            border-top-color: var(--primary);
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <!-- Loading Overlay -->
+    <div id="loader">
+        <div class="spinner"></div>
+        <h3 style="font-family: 'Outfit'; font-weight: 800; color: #fff; letter-spacing: 1px;">MESH FORGE PLAYGROUND</h3>
+        <p style="font-size: 0.72rem; color: var(--primary); margin-top: 6px; text-transform: uppercase; letter-spacing: 2px;">Compilador Focado Ativo</p>
+    </div>
+
+    <!-- Glowing backdrop lights -->
+    <div class="glow-orb glow-1"></div>
+    <div class="glow-orb glow-2"></div>
+
+    <!-- Sidebar IDE -->
+    <div id="sidebar">
+        <!-- Logo -->
+        <div class="header">
+            <div class="logo-icon">C</div>
+            <div class="logo-text">
+                <h1>MESH FORGE IDE</h1>
+                <p>Playground Procedural Direto</p>
+            </div>
+        </div>
+
+        <div class="scrollable-content">
+            
+            <!-- CODE PLAYGROUND CARD -->
+            <div class="card" style="padding: 12px; margin-bottom: 10px;">
+                <div class="card-title">
+                    <div class="card-title-left">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                        Editor de Deformação
+                    </div>
+                </div>
+
+                <!-- Custom code editor -->
+                <div class="editor-container" id="editor-wrapper">
+                    <div class="editor-header">
+                        <span class="lang-badge">JS Mesh API</span>
+                        <span>getVertexHeight(x, z, time)</span>
+                    </div>
+                    <div class="editor-body">
+                        <!-- Line Numbers -->
+                        <div class="line-numbers" id="line-numbers">1<br>2<br>3</div>
+                        
+                        <!-- Textarea -->
+                        <div class="textarea-wrapper">
+                            <div class="editor-pre-wrapper">function getVertexHeight(x, z, time) {</div>
+                            <textarea class="code-textarea" id="code-textarea" spellcheck="false" autocomplete="off">// Insira as variáveis abaixo e combine-as no return!
+const onda = Math.sin(x * 0.3 + time) * 1.2;
+return onda;</textarea>
+                            <div class="editor-post-wrapper">}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Error Panel -->
+                <div class="error-banner" id="error-banner"></div>
+            </div>
+
+            <!-- CODE RECIPES LIBRARY (BIBLIOTECA DE RECEITAS) -->
+            <div class="card" style="margin-bottom: 10px;">
+                <div class="card-title">
+                    <div class="card-title-left">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                        Biblioteca de Receitas de Código
+                    </div>
+                </div>
+                <div class="recipes-list">
+                    <!-- Layer 1: Oceano -->
+                    <div class="recipe-card">
+                        <div class="recipe-header">
+                            <span class="recipe-name">Onda de Oceano (Seno)</span>
+                        </div>
+                        <div class="recipe-desc">Cria uma onda dinâmica oscilando no tempo baseada em coordenadas.</div>
+                        <div class="recipe-code-box">const onda = Math.sin(x * 0.4 + time) * 0.8;</div>
+                        <button class="recipe-add-btn" onclick="insertFragment('const onda = Math.sin(x * 0.4 + time) * 0.8;\n')">+ Inserir no Cursor</button>
+                    </div>
+
+                    <!-- Layer 2: Colinas -->
+                    <div class="recipe-card">
+                        <div class="recipe-header">
+                            <span class="recipe-name">Colinas Suaves (Perlin)</span>
+                        </div>
+                        <div class="recipe-desc">Ruído Perlin 2D contínuo e natural de altitude média.</div>
+                        <div class="recipe-code-box">const colina = noise2d(x * 0.15, z * 0.15) * 1.8;</div>
+                        <button class="recipe-add-btn" onclick="insertFragment('const colina = noise2d(x * 0.15, z * 0.15) * 1.8;\n')">+ Inserir no Cursor</button>
+                    </div>
+
+                    <!-- Layer 3: Montanhas -->
+                    <div class="recipe-card">
+                        <div class="recipe-header">
+                            <span class="recipe-name">Montanhas Acidentadas (fBm)</span>
+                        </div>
+                        <div class="recipe-desc">Somatório fractal de oitavas de ruído para picos de grande altitude.</div>
+                        <div class="recipe-code-box">const montanha = fbm2d(x * 0.22, z * 0.22, 4) * 3.5;</div>
+                        <button class="recipe-add-btn" onclick="insertFragment('const montanha = fbm2d(x * 0.22, z * 0.22, 4) * 3.5;\n')">+ Inserir no Cursor</button>
+                    </div>
+
+                    <!-- Layer 4: Pedregulhos -->
+                    <div class="recipe-card">
+                        <div class="recipe-header">
+                            <span class="recipe-name">Micro Pedregulhos (Ruído Fino)</span>
+                        </div>
+                        <div class="recipe-desc">Ruído de alta frequência e baixa amplitude para simular solo rugoso.</div>
+                        <div class="recipe-code-box">const detalhe = noise2d(x * 1.8, z * 1.8) * 0.15;</div>
+                        <button class="recipe-add-btn" onclick="insertFragment('const detalhe = noise2d(x * 1.8, z * 1.8) * 0.15;\n')">+ Inserir no Cursor</button>
+                    </div>
+
+                    <!-- Layer 5: Ilha -->
+                    <div class="recipe-card">
+                        <div class="recipe-header">
+                            <span class="recipe-name">Máscara Radial de Ilha</span>
+                        </div>
+                        <div class="recipe-desc">Decaimento radial em direção às bordas, ideal para isolar terrenos.</div>
+                        <div class="recipe-code-box">const mascara = Math.max(0, 1.0 - Math.sqrt(x*x + z*z) / 6.0);</div>
+                        <button class="recipe-add-btn" onclick="insertFragment('const mascara = Math.max(0, 1.0 - Math.sqrt(x*x + z*z) / 6.0);\n')">+ Inserir no Cursor</button>
+                    </div>
+
+                    <!-- --- SEÇÃO DE COMBINAÇÕES DE RETORNO --- -->
+                    <div style="border-top: 1px dashed rgba(255,255,255,0.08); margin: 16px 0 10px 0; padding-top: 12px;">
+                        <span style="font-size: 0.72rem; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 8px;">Fórmulas de Retorno (Combinações)</span>
+                    </div>
+
+                    <!-- Return: Somar Camadas -->
+                    <div class="recipe-card">
+                        <div class="recipe-header">
+                            <span class="recipe-name">Somar Relevos (Acumular)</span>
+                        </div>
+                        <div class="recipe-desc">Soma as duas variáveis para acumular as elevações (ex: ondas em cima de colinas).</div>
+                        <div class="recipe-code-box">return onda + colina;</div>
+                        <button class="recipe-add-btn" onclick="insertFragment('return onda + colina;\n')">+ Inserir no Cursor</button>
+                    </div>
+
+                    <!-- Return: Multiplicar Camadas -->
+                    <div class="recipe-card">
+                        <div class="recipe-header">
+                            <span class="recipe-name">Multiplicar por Máscara (Isolar)</span>
+                        </div>
+                        <div class="recipe-desc">Multiplica o relevo por uma máscara para manter as bordas niveladas na água.</div>
+                        <div class="recipe-code-box">return montanha * mascara;</div>
+                        <button class="recipe-add-btn" onclick="insertFragment('return montanha * mascara;\n')">+ Inserir no Cursor</button>
+                    </div>
+
+                    <!-- Return: Máximo -->
+                    <div class="recipe-card">
+                        <div class="recipe-header">
+                            <span class="recipe-name">Junção de Picos (Máximo)</span>
+                        </div>
+                        <div class="recipe-desc">Compara as duas alturas e mantém a maior delas em cada vértice.</div>
+                        <div class="recipe-code-box">return Math.max(onda, colina);</div>
+                        <button class="recipe-add-btn" onclick="insertFragment('return Math.max(onda, colina);\n')">+ Inserir no Cursor</button>
+                    </div>
+
+                    <!-- Return: Média -->
+                    <div class="recipe-card">
+                        <div class="recipe-header">
+                            <span class="recipe-name">Média Suave</span>
+                        </div>
+                        <div class="recipe-desc">Tira a média aritmética simples das duas elevações.</div>
+                        <div class="recipe-code-box">return (onda + colina) / 2.0;</div>
+                        <button class="recipe-add-btn" onclick="insertFragment('return (onda + colina) / 2.0;\n')">+ Inserir no Cursor</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GEOMETRY CONFIG CARD -->
+            <div class="card" style="margin-bottom: 10px;">
+                <div class="card-title">
+                    <div class="card-title-left">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+                        Parâmetros da Malha 3D
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="meshType">Geometria Base</label>
+                    <select id="meshType">
+                        <option value="plane">Plano (Terreno)</option>
+                        <option value="sphere">Esfera 3D</option>
+                        <option value="torus">Donut (Torus)</option>
+                        <option value="cylinder">Cilindro</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="resolution">Resolução da Malha <span class="val-display" id="res-val">64x64</span></label>
+                    <input type="range" id="resolution" min="16" max="128" step="16" value="64">
+                </div>
+
+                <div class="form-group">
+                    <label>Estilo Visual</label>
+                    <div class="btn-group">
+                        <button class="btn active" id="btn-wireframe">Apenas Linhas</button>
+                        <button class="btn" id="btn-solid">Sólido Colorido</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Normais de Vértice</label>
+                    <div class="btn-group">
+                        <button class="btn active" id="btn-normals-on">Recalcular (Correto)</button>
+                        <button class="btn" id="btn-normals-off">Ignorar (Sem Iluminação)</button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- DYNAMIC UNITY C# SYNC PANEL -->
+        <div class="code-container">
+            <div class="code-header">
+                <span>Tradutor C# Unity (Direto 1:1)</span>
+                <button class="copy-btn" onclick="copyCSCode()">Copiar Código C#</button>
+            </div>
+            <div class="code-window">
+                <pre><code id="cs-viewer"></code></pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- WebGL Canvas Viewport -->
+    <div id="canvas-container">
+        <!-- Floating navigation help -->
+        <div id="controls-hover-tip">
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"></path></svg>
+            <span>Botão Esquerdo para Rotacionar • Scroll para Zoom • Botão Direito para Mover</span>
+        </div>
+    </div>
+
+    <!-- CDN Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <!-- Playground Logical Engine -->
+    <script>
+        // --- NATIVE PROCEDURAL GENERATION MATHEMATICS ---
+        const permutation = new Uint8Array([151,160,137,91,90,15,
+            131,13,201,95,96,53,194,233,7,225,140,36,103,30,69,142,8,99,37,240,21,10,23,
+            190, 6,148,247,120,234,75,0,26,197,62,94,252,219,203,117,35,11,32,57,177,33,
+            88,237,149,56,87,174,20,125,136,171,168, 68,175,74,165,71,134,139,48,27,166,
+            77,146,158,231,83,111,229,122,60,211,133,230,220,105,92,41,55,46,245,40,244,
+            102,143,54, 65,25,63,161, 1,216,80,73,209,76,132,187,208, 89,18,169,200,196,
+            135,130,116,188,189,134,147,121,211,228,80,58,51,233,182,189,28,42,223,184,
+            124,192,244,151,110,188,58,162,30,252,28,41,137,192,207,247,40,113,245,67,110,
+            17,45,217,9,78,163,82,232,84,189,40,116,224,117,211,10,58,133,251,194,236,204,
+            143,36,18,42,246,221,196,116,42,162,3,242,111,205,178,0,135,179,174,49,201,112,
+            89,224,20,251,40,222,44,83,13,85,97,228,51,50,172,122,47,152,24,97,184,82,108,
+            29,223,254,244,162,35,201,251,67,238,96,252,115,224,103,137,111,40,111,252,19,
+            247,228,103,222,238,101,24,140,207,250
+        ]);
+
+        const p = new Uint8Array(512);
+        for (let i = 0; i < 256; i++) {
+            p[i] = permutation[i];
+            p[256 + i] = permutation[i];
+        }
+
+        function fade(t) {
+            return t * t * t * (t * (t * 6 - 15) + 10);
+        }
+
+        function lerp(t, a, b) {
+            return a + t * (b - a);
+        }
+
+        function grad2d(hash, x, y) {
+            const h = hash & 7;
+            const u = h < 4 ? x : y;
+            const v = h < 4 ? y : x;
+            return ((h & 1) ? -u : u) + ((h & 2) ? -2.0 * v : 2.0 * v);
+        }
+
+        function noise2d(x, y) {
+            const X = Math.floor(x) & 255;
+            const Y = Math.floor(y) & 255;
+            x -= Math.floor(x);
+            y -= Math.floor(y);
+            const u = fade(x);
+            const v = fade(y);
+            const A = p[X] + Y;
+            const B = p[X + 1] + Y;
+            return lerp(v, lerp(u, grad2d(p[A], x, y),
+                                   grad2d(p[B], x - 1, y)),
+                           lerp(u, grad2d(p[A + 1], x, y - 1),
+                                   grad2d(p[B + 1], x - 1, y - 1)));
+        }
+
+        function fbm2d(x, y, octaves = 4, lacunarity = 2.0, gain = 0.5) {
+            let total = 0;
+            let amplitude = 1.0;
+            let frequency = 1.0;
+            let maxValue = 0;
+            for (let i = 0; i < octaves; i++) {
+                total += noise2d(x * frequency, y * frequency) * amplitude;
+                maxValue += amplitude;
+                amplitude *= gain;
+                frequency *= lacunarity;
+            }
+            return total / maxValue;
+        }
+
+        // --- SYSTEM CORE ENGINE STATE ---
+        let scene, camera, renderer, controls;
+        let mesh, baseGeometry;
+        let originalPositions = [];
+        let clock = new THREE.Clock();
+
+        let settings = {
+            meshType: 'plane',
+            resolution: 64,
+            isWireframe: true,
+            recalculateNormals: true
+        };
+
+        // Playground live compiled function
+        let userHeightFunction = function(x, z, time, noise2d, fbm2d) {
+            return Math.sin(x * 0.3 + time) * 1.2;
+        };
+
+        // UI Selectors
+        const ui = {
+            meshType: document.getElementById('meshType'),
+            resolution: document.getElementById('resolution'),
+            resVal: document.getElementById('res-val'),
+            btnWireframe: document.getElementById('btn-wireframe'),
+            btnSolid: document.getElementById('btn-solid'),
+            btnNormalsOn: document.getElementById('btn-normals-on'),
+            btnNormalsOff: document.getElementById('btn-normals-off'),
+            codeTextarea: document.getElementById('code-textarea'),
+            lineNumbers: document.getElementById('line-numbers'),
+            errorBanner: document.getElementById('error-banner'),
+            csViewer: document.getElementById('cs-viewer'),
+            editorWrapper: document.getElementById('editor-wrapper'),
+            loader: document.getElementById('loader')
+        };
+
+        // --- INITIALIZATION ---
+        function init() {
+            // Setup WebGL Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x06080c);
+            scene.fog = new THREE.FogExp2(0x06080c, 0.04);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(60, (window.innerWidth - 530) / window.innerHeight, 0.1, 100);
+            camera.position.set(0, 8, 12);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+            renderer.setSize(window.innerWidth - 530, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            // OrbitControls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2 - 0.02;
+            controls.minDistance = 3;
+            controls.maxDistance = 25;
+
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.18);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(8, 16, 8);
+            dirLight.castShadow = true;
+            scene.add(dirLight);
+
+            const pointLight = new THREE.PointLight(0x00f2fe, 3.5, 20);
+            pointLight.position.set(-6, 5, -6);
+            scene.add(pointLight);
+
+            // Base floor grid helper
+            const gridHelper = new THREE.GridHelper(30, 30, 0x00f2fe, 0x131a24);
+            gridHelper.position.y = -3;
+            gridHelper.material.opacity = 0.35;
+            gridHelper.material.transparent = true;
+            scene.add(gridHelper);
+
+            // Build mesh
+            rebuildMesh();
+
+            // Setup bindings & actions
+            setupIDEEventListeners();
+
+            // Run initial compilation
+            compileUserCode();
+
+            // Hide loader overlay
+            setTimeout(() => {
+                ui.loader.style.opacity = 0;
+                setTimeout(() => ui.loader.style.display = 'none', 300);
+            }, 500);
+
+            // Start loop
+            animate();
+        }
+
+        // --- 3D MESH TOPOLOGY GENERATOR ---
+        function rebuildMesh() {
+            if (mesh) {
+                scene.remove(mesh);
+                baseGeometry.dispose();
+            }
+
+            const res = parseInt(settings.resolution);
+
+            switch (settings.meshType) {
+                case 'plane':
+                    baseGeometry = new THREE.PlaneGeometry(12, 12, res, res);
+                    baseGeometry.rotateX(-Math.PI / 2);
+                    break;
+                case 'sphere':
+                    baseGeometry = new THREE.SphereGeometry(4, res, res);
+                    break;
+                case 'torus':
+                    baseGeometry = new THREE.TorusGeometry(3.0, 1.0, res / 2, res);
+                    break;
+                case 'cylinder':
+                    baseGeometry = new THREE.CylinderGeometry(2.5, 2.5, 7, res, res);
+                    break;
+            }
+
+            const positionAttribute = baseGeometry.attributes.position;
+            const count = positionAttribute.count;
+
+            const colors = new Float32Array(count * 3);
+            baseGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+            originalPositions = [];
+            for (let i = 0; i < count; i++) {
+                originalPositions.push(new THREE.Vector3(
+                    positionAttribute.getX(i),
+                    positionAttribute.getY(i),
+                    positionAttribute.getZ(i)
+                ));
+            }
+
+            let material;
+            if (settings.isWireframe) {
+                material = new THREE.MeshBasicMaterial({
+                    vertexColors: true,
+                    wireframe: true,
+                    side: THREE.DoubleSide
+                });
+            } else {
+                material = new THREE.MeshStandardMaterial({
+                    vertexColors: true,
+                    roughness: 0.35,
+                    metalness: 0.45,
+                    side: THREE.DoubleSide,
+                    flatShading: !settings.recalculateNormals
+                });
+            }
+
+            mesh = new THREE.Mesh(baseGeometry, material);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            scene.add(mesh);
+        }
+
+        // --- IDE LIVE COMPILATION ---
+        function compileUserCode() {
+            const rawBody = ui.codeTextarea.value;
+            
+            try {
+                // Compile dynamic wrapper function including global custom helper layers
+                const compiledFunc = new Function('x', 'z', 'time', 'noise2d', 'fbm2d', rawBody);
+                
+                // Safe Dry-Run compilation testing with mock inputs
+                const test = compiledFunc(0, 0, 0, noise2d, fbm2d);
+                if (typeof test !== 'number' || isNaN(test)) {
+                    throw new Error("A equação de retorno deve devolver um float/double válido.");
+                }
+
+                // Success! Assign live
+                userHeightFunction = compiledFunc;
+                clearCompilerError();
+                
+                // Keep Unity C# translator perfectly synced
+                updateCSVisualizer(rawBody);
+            } catch (err) {
+                showCompilerError(err.message);
+            }
+        }
+
+        function showCompilerError(msg) {
+            ui.errorBanner.textContent = `⚠️ Erro na Fórmula: ${msg}`;
+            ui.errorBanner.style.display = 'block';
+            ui.editorWrapper.style.borderColor = 'var(--accent)';
+        }
+
+        function clearCompilerError() {
+            ui.errorBanner.style.display = 'none';
+            ui.editorWrapper.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+            if (document.activeElement === ui.codeTextarea) {
+                ui.editorWrapper.style.borderColor = 'var(--primary)';
+            }
+        }
+
+        // --- PLAYGROUND CORE DEFORMATION ---
+        function deformMesh(elapsedTime) {
+            if (!mesh || !baseGeometry) return;
+
+            const positionAttribute = baseGeometry.attributes.position;
+            const colorAttribute = baseGeometry.attributes.color;
+            const count = positionAttribute.count;
+
+            for (let i = 0; i < count; i++) {
+                const orig = originalPositions[i];
+                let x = orig.x;
+                let y = orig.y;
+                let z = orig.z;
+
+                let heightVal = 0;
+
+                try {
+                    // Call the compiled function passing coordinate parameters, time, noise utilities
+                    heightVal = userHeightFunction(x, z, elapsedTime, noise2d, fbm2d);
+                } catch(err) {
+                    heightVal = 0;
+                }
+
+                if (settings.meshType === 'plane') {
+                    positionAttribute.setY(i, orig.y + heightVal);
+                } else {
+                    const normalVec = orig.clone().normalize();
+                    positionAttribute.setX(i, orig.x + normalVec.x * heightVal * 0.5);
+                    positionAttribute.setY(i, orig.y + normalVec.y * heightVal * 0.5);
+                    positionAttribute.setZ(i, orig.z + normalVec.z * heightVal * 0.5);
+                }
+
+                // Cyber colorization: Deep Blue (-2.0) -> Cyan (0.0) -> Pink (2.0)
+                const factor = Math.max(0, Math.min(1, (heightVal + 2.0) / 4.0));
+                
+                let r = 0, g = 0, b = 0;
+                if (factor < 0.5) {
+                    const t = factor * 2;
+                    r = lerp(t, 8, 0) / 255;
+                    g = lerp(t, 12, 242) / 255;
+                    b = lerp(t, 32, 254) / 255;
+                } else {
+                    const t = (factor - 0.5) * 2;
+                    r = lerp(t, 0, 255) / 255;
+                    g = lerp(t, 242, 8) / 255;
+                    b = lerp(t, 254, 68) / 255;
+                }
+                colorAttribute.setXYZ(i, r, g, b);
+            }
+
+            positionAttribute.needsUpdate = true;
+            colorAttribute.needsUpdate = true;
+
+            if (settings.recalculateNormals) {
+                baseGeometry.computeVertexNormals();
+            }
+        }
+
+        // --- DIRECT CODE FRAGMENT INJECTOR ---
+        function insertFragment(codeToInsert) {
+            const textarea = ui.codeTextarea;
+            const text = textarea.value;
+            const start = textarea.selectionStart;
+            
+            // Find the end of the current line where the cursor is
+            let nextNewline = text.indexOf('\n', start);
+            if (nextNewline === -1) {
+                nextNewline = text.length;
+            }
+            
+            // Find the start of the current line
+            let prevNewline = text.lastIndexOf('\n', start - 1);
+            if (prevNewline === -1) {
+                prevNewline = -1;
+            }
+            const currentLineText = text.substring(prevNewline + 1, nextNewline).trim();
+            
+            let newText = "";
+            let newCursorPos = 0;
+            
+            // If the current line is the default welcome comment, replace it cleanly!
+            if (currentLineText === "// Insira as variáveis abaixo e combine-as no return!") {
+                newText = text.substring(0, prevNewline + 1) + codeToInsert + text.substring(nextNewline);
+                newCursorPos = (prevNewline + 1) + codeToInsert.length;
+            } 
+            // If the current line is completely empty, insert right here
+            else if (currentLineText === "") {
+                newText = text.substring(0, start) + codeToInsert + text.substring(start);
+                newCursorPos = start + codeToInsert.length;
+            } 
+            // Otherwise, append to the end of the current line on a fresh new line!
+            else {
+                const insertion = "\n" + codeToInsert;
+                newText = text.substring(0, nextNewline) + insertion + text.substring(nextNewline);
+                newCursorPos = nextNewline + insertion.length;
+            }
+            
+            textarea.value = newText;
+            
+            // Update cursor position and compile
+            textarea.selectionStart = textarea.selectionEnd = newCursorPos;
+            updateLineNumbers();
+            compileUserCode();
+            textarea.focus();
+        }
+
+        // --- C# TRANSLATOR PARSER v3 (1:1 ASSINATURAS DE MÉTODOS) ---
+        function updateCSVisualizer(jsBody) {
+            let csParsed = jsBody
+                .replace(/Math\.sin/g, 'Mathf.Sin')
+                .replace(/Math\.cos/g, 'Mathf.Cos')
+                .replace(/Math\.tan/g, 'Mathf.Tan')
+                .replace(/Math\.sqrt/g, 'Mathf.Sqrt')
+                .replace(/Math\.abs/g, 'Mathf.Abs')
+                .replace(/Math\.pow/g, 'Mathf.Pow')
+                .replace(/Math\.max/g, 'Mathf.Max')
+                .replace(/Math\.min/g, 'Mathf.Min')
+                .replace(/Math\.PI/g, 'Mathf.PI')
+                .replace(/const /g, 'float ')
+                .replace(/let /g, 'float ')
+                .replace(/var /g, 'float ');
+
+            // Translate float values safely (ex: 0.4 -> 0.4f)
+            csParsed = csParsed.replace(/([0-9]+\.[0-9]+)/g, '$1f');
+
+            const lines = csParsed.split('\n');
+            const indentedBody = lines.map(line => '            ' + line).join('\n');
+
+            const csTemplate = `// --- TRANSLATOR COMPILATION ACTIVE ---
+// Arraste este script para o seu Plane no Unity!
+
+using UnityEngine;
+
+[RequireComponent(typeof(MeshFilter))]
+public class ModularTerrainDeformer : MonoBehaviour
+{
+    private MeshFilter meshFilter;
+    private Vector3[] baseVertices;
+    private Mesh mesh;
+
+    void Start()
+    {
+        meshFilter = GetComponent<MeshFilter>();
+        mesh = meshFilter.mesh;
+        baseVertices = mesh.vertices;
+    }
+
+    void Update()
+    {
+        Vector3[] vertices = new Vector3[baseVertices.Length];
+        float time = Time.time;
+
+        for (int i = 0; i < vertices.Length; i++)
+        {
+            Vector3 vertex = baseVertices[i];
+            
+            // Injeção de variáveis locais 2D
+            float x = vertex.x;
+            float z = vertex.z;
+            float height = 0f;
+
+            // EQUAÇÃO DE DEFORMAÇÃO MODULAR TRANSLADADA:
+${indentedBody}
+
+            vertices[i] = new Vector3(vertex.x, height, vertex.z);
+        }
+
+        mesh.vertices = vertices;
+        ${settings.recalculateNormals ? "mesh.RecalculateNormals();" : "// Recalcular normais ignorado"}
+        mesh.RecalculateBounds();
+    }
+
+    // --- ASSINATURAS DE MÉTODOS 1:1 COM JAVASCRIPT ---
+    
+    // Ruído Perlin 2D (Retorna valores suaves centralizados entre -0.5 e 0.5)
+    private float noise2d(float x, float z)
+    {
+        return Mathf.PerlinNoise(x, z) - 0.5f;
+    }
+
+    // fBm Fractal (Acúmulo de oitavas)
+    private float fbm2d(float x, float z, int octaves)
+    {
+        float total = 0f;
+        float amplitude = 1f;
+        float frequency = 1f;
+        float maxValue = 0f;
+        for (int i = 0; i < octaves; i++)
+        {
+            total += noise2d(x * frequency, z * frequency) * amplitude;
+            maxValue += amplitude;
+            amplitude *= 0.5f;
+            frequency *= 2f;
+        }
+        return total / maxValue;
+    }
+}`;
+            ui.csViewer.textContent = csTemplate;
+        }
+
+        // --- IDE & UI EVENT BINDINGS ---
+        function setupIDEEventListeners() {
+            // Live keystroke compiler trigger
+            ui.codeTextarea.addEventListener('input', () => {
+                updateLineNumbers();
+                compileUserCode();
+            });
+
+            // Focus glows
+            ui.codeTextarea.addEventListener('focus', () => ui.editorWrapper.classList.add('focus'));
+            ui.codeTextarea.addEventListener('blur', () => ui.editorWrapper.classList.remove('focus'));
+
+            // Indentation Tab Key Handler
+            ui.codeTextarea.addEventListener('keydown', (e) => {
+                if (e.key === 'Tab') {
+                    e.preventDefault();
+                    const start = ui.codeTextarea.selectionStart;
+                    const end = ui.codeTextarea.selectionEnd;
+                    ui.codeTextarea.value = ui.codeTextarea.value.substring(0, start) + "    " + ui.codeTextarea.value.substring(end);
+                    ui.codeTextarea.selectionStart = ui.codeTextarea.selectionEnd = start + 4;
+                    compileUserCode();
+                }
+            });
+
+            // Synchronize scrolling
+            ui.codeTextarea.addEventListener('scroll', () => {
+                ui.lineNumbers.scrollTop = ui.codeTextarea.scrollTop;
+            });
+
+            // Mesh Type dropdown
+            ui.meshType.addEventListener('change', (e) => {
+                settings.meshType = e.target.value;
+                rebuildMesh();
+            });
+
+            // Mesh resolution
+            ui.resolution.addEventListener('input', (e) => {
+                settings.resolution = e.target.value;
+                ui.resVal.textContent = `${settings.resolution}x${settings.resolution}`;
+                rebuildMesh();
+            });
+
+            // Wireframe / Solid buttons
+            ui.btnWireframe.addEventListener('click', () => {
+                ui.btnWireframe.classList.add('active');
+                ui.btnSolid.classList.remove('active');
+                settings.isWireframe = true;
+                rebuildMesh();
+            });
+
+            ui.btnSolid.addEventListener('click', () => {
+                ui.btnSolid.classList.add('active');
+                ui.btnWireframe.classList.remove('active');
+                settings.isWireframe = false;
+                rebuildMesh();
+            });
+
+            // Normal recalculations buttons
+            ui.btnNormalsOn.addEventListener('click', () => {
+                ui.btnNormalsOn.classList.add('active');
+                ui.btnNormalsOff.classList.remove('active');
+                settings.recalculateNormals = true;
+                rebuildMesh();
+            });
+
+            ui.btnNormalsOff.addEventListener('click', () => {
+                ui.btnNormalsOff.classList.add('active');
+                ui.btnNormalsOn.classList.remove('active');
+                settings.recalculateNormals = false;
+                rebuildMesh();
+            });
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function updateLineNumbers() {
+            const lines = ui.codeTextarea.value.split('\n').length;
+            let numberString = '';
+            for (let i = 1; i <= lines; i++) {
+                numberString += i + '<br>';
+            }
+            ui.lineNumbers.innerHTML = numberString;
+        }
+
+        function onWindowResize() {
+            camera.aspect = (window.innerWidth - 530) / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth - 530, window.innerHeight);
+        }
+
+        // --- ANIMATION COMPILER LOOP ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            controls.update();
+
+            const elapsedTime = clock.getElapsedTime();
+            deformMesh(elapsedTime);
+
+            renderer.render(scene, camera);
+        }
+
+        function copyCSCode() {
+            navigator.clipboard.writeText(ui.csViewer.textContent).then(() => {
+                const btn = document.querySelector('.copy-btn');
+                btn.textContent = 'COPIADO!';
+                btn.style.background = 'var(--primary)';
+                btn.style.color = '#000';
+                setTimeout(() => {
+                    btn.textContent = 'Copiar Código C#';
+                    btn.style.background = 'rgba(255, 255, 255, 0.04)';
+                    btn.style.color = 'var(--text-muted)';
+                }, 2000);
+            });
+        }
+
+        // Initialize editor lines count
+        updateLineNumbers();
+
+        // Boot
+        window.onload = init;
+    </script>
+</body>
+</html>
